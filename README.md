@@ -80,22 +80,5 @@ npm run dev
 3. 前端自定义  
    页面路径 `ruoyi-ui/src/views/library/...`，已封装通用 `CRUD.vue`，参照现有页面修改。
 
----
-
-## 7. 演示截图
-（位于 `/docs/screenshot/`）
-
-| 登录页 | 借还书工作台 | 个人借阅中心 |
-| ------ | ------------ | ------------ |
-| ![login](docs/screenshot/login.png) | ![borrow](docs/screenshot/borrow.png) | ![my](docs/screenshot/my.png) |
-
----
-
-## 8. 已知问题 & TODO
-- [ ] 图书分类模糊搜索未做  
-- [ ] 短信/邮件超期提醒待集成  
-- [ ] 接口限流、防刷、密码强度升级  
-- [ ] 低版本浏览器样式兼容  
-欢迎提 Issue / PR 共同完善！
 
 
