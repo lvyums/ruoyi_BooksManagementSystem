@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.library.mapper.BorrowMapper">
+    
+    <resultMap type="Borrow" id="BorrowResult">
+        <result property="BorrowID"    column="BorrowID"    />
+        <result property="rdID"    column="rdID"    />
+        <result property="bkID"    column="bkID"    />
+        <result property="ldContinueTimes"    column="ldContinueTimes"    />
+        <result property="ldDateOut"    column="ldDateOut"    />
+        <result property="ldDateRetPlan"    column="ldDateRetPlan"    />
+        <result property="ldDateRetAct"    column="ldDateRetAct"    />
+        <result property="ldOverDay"    column="ldOverDay"    />
+        <result property="ldOverMoney"    column="ldOverMoney"    />
+        <result property="ldPunishMoney"    column="ldPunishMoney"    />
+        <result property="lsHasReturn"    column="lsHasReturn"    />
+        <result property="OperatorBorrow"    column="OperatorBorrow"    />
+        <result property="OperatorReturn"    column="OperatorReturn"    />
+        <!-- 🔥 新增这一行：把数据库查出来的 bookName 列，赋值给 Java 里的 bookName 字段 -->
+        <result property="bookName"    column="bookName"    />
+    </resultMap>
+
+    <sql id="selectBorrowVo">
+        select BorrowID, rdID, bkID, ldContinueTimes, ldDateOut, ldDateRetPlan, ldDateRetAct, ldOverDay, ldOverMoney, ldPunishMoney, lsHasReturn, OperatorBorrow, OperatorReturn from tb_borrow
+    </sql>
+
+    <select id="selectBorrowList" parameterType="Borrow" resultMap="BorrowResult">
+        select
+        b.BorrowID,
+        b.rdID,
+        b.bkID,
+        b.ldContinueTimes,
+        b.ldDateOut,
+        b.ldDateRetPlan,
+        b.ldDateRetAct,
+        b.ldOverDay,
+        b.ldOverMoney,
+        b.ldPunishMoney,
+        b.lsHasReturn,
+        b.OperatorBorrow,
+        b.OperatorReturn,
+        k.bkName as bookName
+        from tb_borrow b
+        left join tb_book k on b.bkID = k.bkID
+        <where>
+            <if test="rdID != null "> and b.rdID = #{rdID}</if>
+            <if test="bkID != null "> and b.bkID = #{bkID}</if>
+            <if test="ldContinueTimes != null "> and b.ldContinueTimes = #{ldContinueTimes}</if>
+            <if test="ldDateOut != null "> and b.ldDateOut = #{ldDateOut}</if>
+            <if test="ldDateRetPlan != null "> and b.ldDateRetPlan = #{ldDateRetPlan}</if>
+            <if test="ldDateRetAct != null "> and b.ldDateRetAct = #{ldDateRetAct}</if>
+            <if test="ldOverDay != null "> and b.ldOverDay = #{ldOverDay}</if>
+            <if test="ldOverMoney != null "> and b.ldOverMoney = #{ldOverMoney}</if>
+            <if test="ldPunishMoney != null "> and b.ldPunishMoney = #{ldPunishMoney}</if>
+            <if test="lsHasReturn != null  and lsHasReturn != ''"> and b.lsHasReturn = #{lsHasReturn}</if>
+            <if test="OperatorBorrow != null  and OperatorBorrow != ''"> and b.OperatorBorrow = #{OperatorBorrow}</if>
+            <if test="OperatorReturn != null  and OperatorReturn != ''"> and b.OperatorReturn = #{OperatorReturn}</if>
+        </where>
+    </select>
+
+    
+    <select id="selectBorrowByBorrowID" parameterType="Long" resultMap="BorrowResult">
+        <include refid="selectBorrowVo"/>
+        where BorrowID = #{BorrowID}
+    </select>
+
+    <select id="countOverdueByRdID" parameterType="Long" resultType="int">
+        SELECT count(0)
+        FROM tb_borrow
+        WHERE rdID = #{rdID}
+        AND lsHasReturn = '0'  <!-- 未还 -->
+        AND ldDateRetPlan &lt; NOW() <!-- 应还日期 小于 当前时间 (即超期) -->
+    </select>
+
+    <insert id="insertBorrow" parameterType="Borrow" useGeneratedKeys="true" keyProperty="BorrowID">
+        insert into tb_borrow
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="rdID != null">rdID,</if>
+            <if test="bkID != null">bkID,</if>
+            <if test="ldContinueTimes != null">ldContinueTimes,</if>
+            <if test="ldDateOut != null">ldDateOut,</if>
+            <if test="ldDateRetPlan != null">ldDateRetPlan,</if>
+            <if test="ldDateRetAct != null">ldDateRetAct,</if>
+            <if test="ldOverDay != null">ldOverDay,</if>
+            <if test="ldOverMoney != null">ldOverMoney,</if>
+            <if test="ldPunishMoney != null">ldPunishMoney,</if>
+            <if test="lsHasReturn != null">lsHasReturn,</if>
+            <if test="OperatorBorrow != null">OperatorBorrow,</if>
+            <if test="OperatorReturn != null">OperatorReturn,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="rdID != null">#{rdID},</if>
+            <if test="bkID != null">#{bkID},</if>
+            <if test="ldContinueTimes != null">#{ldContinueTimes},</if>
+            <if test="ldDateOut != null">#{ldDateOut},</if>
+            <if test="ldDateRetPlan != null">#{ldDateRetPlan},</if>
+            <if test="ldDateRetAct != null">#{ldDateRetAct},</if>
+            <if test="ldOverDay != null">#{ldOverDay},</if>
+            <if test="ldOverMoney != null">#{ldOverMoney},</if>
+            <if test="ldPunishMoney != null">#{ldPunishMoney},</if>
+            <if test="lsHasReturn != null">#{lsHasReturn},</if>
+            <if test="OperatorBorrow != null">#{OperatorBorrow},</if>
+            <if test="OperatorReturn != null">#{OperatorReturn},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBorrow" parameterType="Borrow">
+        update tb_borrow
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="rdID != null">rdID = #{rdID},</if>
+            <if test="bkID != null">bkID = #{bkID},</if>
+            <if test="ldContinueTimes != null">ldContinueTimes = #{ldContinueTimes},</if>
+            <if test="ldDateOut != null">ldDateOut = #{ldDateOut},</if>
+            <if test="ldDateRetPlan != null">ldDateRetPlan = #{ldDateRetPlan},</if>
+            <if test="ldDateRetAct != null">ldDateRetAct = #{ldDateRetAct},</if>
+            <if test="ldOverDay != null">ldOverDay = #{ldOverDay},</if>
+            <if test="ldOverMoney != null">ldOverMoney = #{ldOverMoney},</if>
+            <if test="ldPunishMoney != null">ldPunishMoney = #{ldPunishMoney},</if>
+            <if test="lsHasReturn != null">lsHasReturn = #{lsHasReturn},</if>
+            <if test="OperatorBorrow != null">OperatorBorrow = #{OperatorBorrow},</if>
+            <if test="OperatorReturn != null">OperatorReturn = #{OperatorReturn},</if>
+        </trim>
+        where BorrowID = #{BorrowID}
+    </update>
+
+    <delete id="deleteBorrowByBorrowID" parameterType="Long">
+        delete from tb_borrow where BorrowID = #{BorrowID}
+    </delete>
+
+    <delete id="deleteBorrowByBorrowIDs" parameterType="String">
+        delete from tb_borrow where BorrowID in 
+        <foreach item="BorrowID" collection="array" open="(" separator="," close=")">
+            #{BorrowID}
+        </foreach>
+    </delete>
+
+    <update id="transferBorrowRecords">
+        UPDATE tb_borrow
+        SET rdID = #{newRdID}
+        WHERE rdID = #{oldRdID}
+    </update>
+</mapper>
