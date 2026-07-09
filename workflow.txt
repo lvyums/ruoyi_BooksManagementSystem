@@ -751,19 +751,32 @@ server {
 
 ### 9.1 数据备份
 ```bash
-# 每日备份脚本
 #!/bin/bash
-DATE=$(date +%Y%m%d)
-mysqldump -u root -p Library > /backup/library_$DATE.sql
+# 每日自动备份脚本 - 建议加入 crontab: 0 2 * * * /path/to/backup.sh
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/backup/library"
+BACKUP_FILE="$BACKUP_DIR/library_$DATE.sql"
+
+# 执行备份
+mysqldump -u root -p123456 Library > "$BACKUP_FILE"
+echo "[$(date)] 备份完成: $BACKUP_FILE"
+
+# 清理30天前的旧备份
+find "$BACKUP_DIR" -name "library_*.sql" -mtime +30 -exec rm -f {} \;
+echo "[$(date)] 已清理30天前的备份文件"
 ```
 
 ### 9.2 日志查看
 ```bash
-# 查看应用日志
+# 实时查看应用日志
 tail -f logs/ruoyi-admin.log
 
-# 查看错误日志
-grep ERROR logs/ruoyi-admin.log
+# 按级别筛选
+grep ERROR logs/ruoyi-admin.log   # 错误日志
+grep INFO  logs/ruoyi-admin.log   # 信息日志
+
+# 查看最近100行日志
+tail -n 100 logs/ruoyi-admin.log
 ```
 
 ---
@@ -772,10 +785,10 @@ grep ERROR logs/ruoyi-admin.log
 
 | 表名 | 说明 | 主要字段 |
 |------|------|----------|
-| TB_ReaderType | 读者类别 | rdType, rdTypeName, CanLendQty, CanLendDay |
+| TB_ReaderType | 读者类别 | rdType, rdTypeName, CanLendQty, CanLendDay, PunishRate |
 | TB_Reader | 读者信息 | rdID, rdName, rdType, rdStatus, rdAdminRoles |
-| TB_Book | 图书信息 | bkID, bkCode, bkName, bkStatus |
-| TB_Borrow | 借阅记录 | BorrowID, rdID, bkID, lsHasReturn |
+| TB_Book | 图书信息 | bkID, bkCode, bkName, bkStatus, bkPrice |
+| TB_Borrow | 借阅记录 | BorrowID, rdID, bkID, lsHasReturn, ldDateOut |
 
 ---
 
