@@ -449,6 +449,57 @@ public class LibraryBusinessLogic {
         return borrow;
     }
 
+    // === 测试辅助方法 ===
+
+    /**
+     * 直接添加读者（测试用，绕过默认值设置）
+     */
+    public void addReader(Reader reader) {
+        readers.put(reader.getRdID(), reader);
+    }
+
+    /**
+     * 直接添加读者类型（测试用）
+     */
+    public void addReaderType(Readertype type) {
+        readerTypes.put(type.getRdType(), type);
+    }
+
+    /**
+     * 直接添加图书（测试用）
+     */
+    public void addBook(Book book) {
+        books.put(book.getBkID(), book);
+    }
+
+    /**
+     * 直接添加借阅记录（测试用）
+     */
+    public void addBorrow(Borrow borrow) {
+        borrows.put(borrow.getBorrowID(), borrow);
+    }
+
+    /**
+     * 获取读者（测试用）
+     */
+    public Reader getReader(Long rdID) {
+        return readers.get(rdID);
+    }
+
+    /**
+     * 获取图书（测试用）
+     */
+    public Book getBook(Long bkID) {
+        return books.get(bkID);
+    }
+
+    /**
+     * 获取借阅记录（测试用）
+     */
+    public Borrow getBorrow(Long borrowID) {
+        return borrows.get(borrowID);
+    }
+
     /**
      * 还书逻辑
      * 1. 校验借阅记录（存在且未还）
