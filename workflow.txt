@@ -650,6 +650,22 @@ VALUES
 ('读者新增', (SELECT menu_id FROM sys_menu WHERE menu_name = '读者管理'), 2, '#', '', 1, 0, 'F', '0', '0', 'library:reader:add', '#', 'admin', sysdate(), '', NULL, ''),
 ('读者修改', (SELECT menu_id FROM sys_menu WHERE menu_name = '读者管理'), 3, '#', '', 1, 0, 'F', '0', '0', 'library:reader:edit', '#', 'admin', sysdate(), '', NULL, ''),
 ('读者删除', (SELECT menu_id FROM sys_menu WHERE menu_name = '读者管理'), 4, '#', '', 1, 0, 'F', '0', '0', 'library:reader:remove', '#', 'admin', sysdate(), '', NULL, '');
+
+-- 图书信息按钮权限
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES 
+('图书查询', (SELECT menu_id FROM sys_menu WHERE menu_name = '图书信息'), 1, '#', '', 1, 0, 'F', '0', '0', 'library:book:query', '#', 'admin', sysdate(), '', NULL, ''),
+('图书新增', (SELECT menu_id FROM sys_menu WHERE menu_name = '图书信息'), 2, '#', '', 1, 0, 'F', '0', '0', 'library:book:add', '#', 'admin', sysdate(), '', NULL, ''),
+('图书修改', (SELECT menu_id FROM sys_menu WHERE menu_name = '图书信息'), 3, '#', '', 1, 0, 'F', '0', '0', 'library:book:edit', '#', 'admin', sysdate(), '', NULL, ''),
+('图书删除', (SELECT menu_id FROM sys_menu WHERE menu_name = '图书信息'), 4, '#', '', 1, 0, 'F', '0', '0', 'library:book:remove', '#', 'admin', sysdate(), '', NULL, '');
+
+-- 借阅管理按钮权限
+INSERT INTO sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES 
+('借阅查询', (SELECT menu_id FROM sys_menu WHERE menu_name = '借阅管理'), 1, '#', '', 1, 0, 'F', '0', '0', 'library:borrow:query', '#', 'admin', sysdate(), '', NULL, ''),
+('借阅新增', (SELECT menu_id FROM sys_menu WHERE menu_name = '借阅管理'), 2, '#', '', 1, 0, 'F', '0', '0', 'library:borrow:add', '#', 'admin', sysdate(), '', NULL, ''),
+('借阅修改', (SELECT menu_id FROM sys_menu WHERE menu_name = '借阅管理'), 3, '#', '', 1, 0, 'F', '0', '0', 'library:borrow:edit', '#', 'admin', sysdate(), '', NULL, ''),
+('借阅删除', (SELECT menu_id FROM sys_menu WHERE menu_name = '借阅管理'), 4, '#', '', 1, 0, 'F', '0', '0', 'library:borrow:remove', '#', 'admin', sysdate(), '', NULL, '');
 ```
 
 ---
