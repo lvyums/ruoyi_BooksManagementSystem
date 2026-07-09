@@ -792,6 +792,8 @@ server {
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 60s;
+        client_max_body_size 10m;
     }
 }
 ```
@@ -804,12 +806,13 @@ server {
 ```bash
 #!/bin/bash
 # 每日自动备份脚本 - 建议加入 crontab: 0 2 * * * /path/to/backup.sh
+# 使用环境变量 MYSQL_PWD 存储密码，避免在脚本中暴露明文密码
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backup/library"
 BACKUP_FILE="$BACKUP_DIR/library_$DATE.sql"
 
 # 执行备份
-mysqldump -u root -p123456 Library > "$BACKUP_FILE"
+mysqldump -u root -p"$MYSQL_PWD" Library > "$BACKUP_FILE"
 echo "[$(date)] 备份完成: $BACKUP_FILE"
 
 # 清理30天前的旧备份
