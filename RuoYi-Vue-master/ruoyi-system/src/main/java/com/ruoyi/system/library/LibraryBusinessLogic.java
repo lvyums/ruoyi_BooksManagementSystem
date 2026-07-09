@@ -19,6 +19,7 @@ public class LibraryBusinessLogic {
     private final Map<Long, Readertype> readerTypes = new HashMap<>();
     private final Map<Long, Book> books = new HashMap<>();
     private final Map<Long, Borrow> borrows = new HashMap<>();
+    private Long nextReaderId = 1L;
     private Long nextBorrowId = 1L;
 
     // ==================== insertReader ====================
@@ -31,7 +32,7 @@ public class LibraryBusinessLogic {
             reader.setRdDateReg(new Date());
         }
         if (reader.getRdID() == null) {
-            reader.setRdID((long) (readers.size() + 1));
+            reader.setRdID(nextReaderId++);
         }
         readers.put(reader.getRdID(), reader);
         return true;
@@ -125,6 +126,10 @@ public class LibraryBusinessLogic {
 
     public void addReader(Reader reader) {
         readers.put(reader.getRdID(), reader);
+    }
+
+    public void removeReader(Long rdID) {
+        readers.remove(rdID);
     }
 
     public void addReaderType(Readertype type) {

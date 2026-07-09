@@ -51,6 +51,30 @@ public class LibraryBusinessLogicTest {
         assertTrue(result);
     }
 
+    @Test
+    public void insertReader_shouldGenerateUniqueIdsAfterDeletion() {
+        Reader r1 = new Reader();
+        r1.setRdName("读者1");
+        logic.insertReader(r1);
+        Long id1 = r1.getRdID();
+
+        Reader r2 = new Reader();
+        r2.setRdName("读者2");
+        logic.insertReader(r2);
+        Long id2 = r2.getRdID();
+
+        // Simulate deletion by removing from internal map via helper
+        logic.removeReader(id1);
+
+        Reader r3 = new Reader();
+        r3.setRdName("读者3");
+        logic.insertReader(r3);
+        Long id3 = r3.getRdID();
+
+        // r3 must NOT get the same ID as r2 (the existing reader)
+        assertNotEquals("New reader must not collide with existing reader", id2, id3);
+    }
+
     // ==================== borrowBook 测试 ====================
 
     @Test(expected = IllegalStateException.class)
