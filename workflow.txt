@@ -360,121 +360,261 @@ export function reportLoss(rdID) {
 
 ## 5. 业务逻辑实现
 
-### 5.1 读者管理核心逻辑
+核心业务逻辑封装在 `LibraryBusinessLogic` 类中，无Spring依赖，可独立单元测试。
 
-#### 办理借书证
+### 5.1 核心业务逻辑类
+
 ```java
-@Override
-@Transactional
-public int insertReader(Reader reader) {
-    // 1. 设置默认值
-    reader.setRdStatus("有效");
-    reader.setRdBorrowQty(0);
-    reader.setRdPwd("123"); // 默认密码
-    reader.setRdDateReg(new Date());
-    
-    // 2. 插入读者记录
-    return readerMapper.insertReader(reader);
+package com.ruoyi.system.library;
+
+import com.ruoyi.system.library.domain.Book;
+import com.ruoyi.system.library.domain.Borrow;
+import com.ruoyi.system.library.domain.Reader;
+import com.ruoyi.system.library.domain.Readertype;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+public class LibraryBusinessLogic {
+
+    private final Map<Long, Reader> readers = new HashMap<>();
+    private final Map<Long, Readertype> readerTypes = new HashMap<>();
+    private final Map<Long, Book> books = new HashMap<>();
+    private final Map<Long, Borrow> borrows = new HashMap<>();
+    private Long nextBorrowId = 1L;
+
+    /**
+     * 办理借书证
+     * 1. 设置默认状态为有效(0)
+     * 2. 初始已借数量为0
+     * 3. 设置默认密码
+     * 4. 自动设置办证日期
+     */
+    public boolean insertReader(Reader reader) {
+        reader.setRdStatus("0");
+        reader.setRdBorrowQty(Long.valueOf(0));
+        reader.setRdPwd("123456");
+        if (reader.getRdDateReg() == null) {
+            reader.setRdDateReg(new Date());
+        }
+        if (reader.getRdID() == null) {
+            reader.setRdID((long) (readers.size() + 1));
+        }
+        readers.put(reader.getRdID(), reader);
+        return true;
+    }
+
+    /**
+     * 借书逻辑
+     * 1. 校验读者状态（有效/挂失/注销）
+     * 2. 校验借书限额（根据读者类别）
+     * 3. 校验图书状态（是否在馆）
+     * 4. 创建借阅记录（计算应还日期）
+     * 5. 更新图书状态为借出(1)
+     * 6. 更新读者已借数量+1
+     */
+    public Borrow borrowBook(Long rdID, Long bkID) {
+        Reader reader = readers.get(rdID);
+        if (reader == null) throw new IllegalStateException("读者ID不存在");
+        if (!"0".equals(reader.getRdStatus())) {
+            throw new IllegalStateException("该借书证处于挂失或注销状态，无法借阅");
+        }
+
+        Readertype type = readerTypes.get(reader.getRdType());
+        if (type == null) throw new IllegalStateException("读者类别异常");
+        if (reader.getRdBorrowQty() >= type.getCanLendQty()) {
+            throw new IllegalStateException("已达到最大借书数量限制");
+        }
+
+        Book book = books.get(bkID);
+        if (book == null) throw new IllegalStateException("图书ID不存在");
+        if (!"0".equals(book.getBkStatus())) {
+            throw new IllegalStateException("图书当前不是在馆状态，无法借阅");
+        }
+
+        Borrow borrow = new Borrow();
+        borrow.setBorrowID(nextBorrowId++);
+        borrow.setRdID(rdID);
+        borrow.setBkID(bkID);
+        borrow.setLdDateOut(new Date());
+        borrow.setLdContinueTimes(0L);
+        borrow.setLsHasReturn("0");
+        borrow.setLdDateRetPlan(new Date(
+            System.currentTimeMillis() + type.getCanLendDay() * 24L * 60 * 60 * 1000));
+        borrows.put(borrow.getBorrowID(), borrow);
+
+        book.setBkStatus("1");
+        reader.setRdBorrowQty(reader.getRdBorrowQty() + 1);
+        return borrow;
+    }
+
+    /**
+     * 还书逻辑
+     * 1. 校验借阅记录（存在且未还）
+     * 2. 计算超期天数和罚款（正常还书按超期天数*罚款率，遗失按书价3倍）
+     * 3. 更新借阅记录（标记已还、填入罚金）
+     * 4. 更新图书状态（在馆(0)/遗失(2)）
+     * 5. 更新读者已借数量-1
+     */
+    public void returnBook(Long borrowID, Boolean isLost) {
+        Borrow borrow = borrows.get(borrowID);
+        if (borrow == null) throw new IllegalStateException("借阅记录不存在");
+        if ("1".equals(borrow.getLsHasReturn())) {
+            throw new IllegalStateException("该图书已经归还过了");
+        }
+
+        Date now = new Date();
+        long overDays = 0;
+        BigDecimal fine = BigDecimal.ZERO;
+
+        if (isLost != null && isLost) {
+            Book book = books.get(borrow.getBkID());
+            fine = book.getBkPrice().multiply(new BigDecimal(3));
+            book.setBkStatus("2");
+        } else {
+            if (now.after(borrow.getLdDateRetPlan())) {
+                long diff = now.getTime() - borrow.getLdDateRetPlan().getTime();
+                overDays = diff / (1000 * 3600 * 24);
+            }
+            Book book = books.get(borrow.getBkID());
+            book.setBkStatus("0");
+            if (overDays > 0) {
+                Readertype type = readerTypes.get(
+                    readers.get(borrow.getRdID()).getRdType());
+                fine = type.getPunishRate().multiply(new BigDecimal(overDays));
+            }
+        }
+
+        borrow.setLdDateRetAct(now);
+        borrow.setLdOverDay(overDays);
+        borrow.setLdOverMoney(fine);
+        borrow.setLdPunishMoney(fine);
+        borrow.setLsHasReturn("1");
+
+        Reader reader = readers.get(borrow.getRdID());
+        reader.setRdBorrowQty(reader.getRdBorrowQty() - 1);
+    }
 }
 ```
 
-#### 借书逻辑
-```java
-@Override
-@Transactional
-public int borrowBook(Integer rdID, Integer bkID, String operator) {
-    // 1. 检查读者状态
-    Reader reader = readerMapper.selectReaderById(rdID);
-    if (!"有效".equals(reader.getRdStatus())) {
-        throw new ServiceException("读者状态异常，无法借书");
-    }
-    
-    // 2. 检查是否超期未还
-    int overdueCount = borrowMapper.countOverdueByReader(rdID);
-    if (overdueCount > 0) {
-        throw new ServiceException("存在超期未还图书，无法借书");
-    }
-    
-    // 3. 检查借书限额
-    ReaderType type = readerTypeMapper.selectReaderTypeById(reader.getRdType());
-    if (reader.getRdBorrowQty() >= type.getCanLendQty()) {
-        throw new ServiceException("已达到借书数量上限");
-    }
-    
-    // 4. 检查图书状态
-    Book book = bookMapper.selectBookById(bkID);
-    if (!"在馆".equals(book.getBkStatus())) {
-        throw new ServiceException("图书不在馆，无法借阅");
-    }
-    
-    // 5. 创建借阅记录
-    Borrow borrow = new Borrow();
-    borrow.setRdID(rdID);
-    borrow.setBkID(bkID);
-    borrow.setLdDateOut(new Date());
-    borrow.setLdDateRetPlan(calculateReturnDate(reader.getRdType()));
-    borrow.setLdContinueTimes(0);
-    borrow.setLsHasReturn(0);
-    borrow.setOperatorBorrow(operator);
-    
-    // 6. 更新读者已借书数量
-    reader.setRdBorrowQty(reader.getRdBorrowQty() + 1);
-    readerMapper.updateReader(reader);
-    
-    // 7. 更新图书状态
-    book.setBkStatus("借出");
-    bookMapper.updateBook(book);
-    
-    return borrowMapper.insertBorrow(borrow);
-}
-```
+### 5.2 单元测试
 
-#### 还书逻辑
 ```java
-@Override
-@Transactional
-public int returnBook(Integer bkID, String operator, boolean isLost, BigDecimal punishMoney) {
-    // 1. 查找未归还的借阅记录
-    Borrow borrow = borrowMapper.selectUnreturnedByBook(bkID);
-    if (borrow == null) {
-        throw new ServiceException("未找到该图书的借阅记录");
+package com.ruoyi.system.library;
+
+import com.ruoyi.system.library.domain.*;
+import org.junit.Before;
+import org.junit.Test;
+import java.math.BigDecimal;
+import java.util.Date;
+import static org.junit.Assert.*;
+
+public class LibraryBusinessLogicTest {
+
+    private LibraryBusinessLogic logic;
+
+    @Before
+    public void setUp() { logic = new LibraryBusinessLogic(); }
+
+    @Test
+    public void insertReader_shouldSetDefaultValues() {
+        Reader reader = new Reader();
+        reader.setRdName("张三");
+        reader.setRdType(1L);
+        logic.insertReader(reader);
+        assertEquals("0", reader.getRdStatus());
+        assertEquals(Long.valueOf(0), reader.getRdBorrowQty());
+        assertNotNull(reader.getRdPwd());
+        assertNotNull(reader.getRdDateReg());
     }
-    
-    // 2. 计算超期天数和罚款
-    int overDay = 0;
-    BigDecimal overMoney = BigDecimal.ZERO;
-    
-    if (isLost) {
-        // 遗失罚款：3倍图书单价
-        Book book = bookMapper.selectBookById(bkID);
-        overMoney = book.getBkPrice().multiply(new BigDecimal(3));
-    } else {
-        // 被期罚款
-        overDay = calculateOverdueDays(borrow.getLdDateRetPlan());
-        ReaderType type = readerTypeMapper.selectReaderTypeByReader(borrow.getRdID());
-        overMoney = new BigDecimal(overDay).multiply(type.getPunishRate());
+
+    @Test(expected = IllegalStateException.class)
+    public void borrowBook_shouldRejectInactiveReader() {
+        Reader reader = new Reader();
+        reader.setRdID(1L); reader.setRdStatus("1");
+        reader.setRdBorrowQty(0L); reader.setRdType(1L);
+        logic.addReader(reader);
+        Readertype type = new Readertype();
+        type.setRdType(1L); type.setCanLendQty(5L); type.setCanLendDay(30L);
+        logic.addReaderType(type);
+        Book book = new Book();
+        book.setBkID(100L); book.setBkStatus("0");
+        logic.addBook(book);
+        logic.borrowBook(1L, 100L);
     }
-    
-    // 3. 更新借阅记录
-    borrow.setLdDateRetAct(new Date());
-    borrow.setLdOverDay(overDay);
-    borrow.setLdOverMoney(overMoney);
-    borrow.setLdPunishMoney(punishMoney);
-    borrow.setLsHasReturn(1);
-    borrow.setOperatorReturn(operator);
-    borrowMapper.updateBorrow(borrow);
-    
-    // 4. 更新读者已借书数量
-    Reader reader = readerMapper.selectReaderById(borrow.getRdID());
-    reader.setRdBorrowQty(reader.getRdBorrowQty() - 1);
-    readerMapper.updateReader(reader);
-    
-    // 5. 更新图书状态
-    Book book = bookMapper.selectBookById(bkID);
-    book.setBkStatus(isLost ? "遗失" : "在馆");
-    bookMapper.updateBook(book);
-    
-    return 1;
+
+    @Test
+    public void borrowBook_shouldSucceedForValidReaderAndBook() {
+        Reader reader = new Reader();
+        reader.setRdID(4L); reader.setRdStatus("0");
+        reader.setRdBorrowQty(0L); reader.setRdType(1L);
+        logic.addReader(reader);
+        Readertype type = new Readertype();
+        type.setRdType(1L); type.setCanLendQty(5L); type.setCanLendDay(30L);
+        logic.addReaderType(type);
+        Book book = new Book();
+        book.setBkID(400L); book.setBkStatus("0");
+        logic.addBook(book);
+        Borrow result = logic.borrowBook(4L, 400L);
+        assertNotNull(result);
+        assertEquals("0", result.getLsHasReturn());
+        assertEquals(Long.valueOf(1), logic.getReader(4L).getRdBorrowQty());
+        assertEquals("1", logic.getBook(400L).getBkStatus());
+    }
+
+    @Test
+    public void returnBook_shouldCalculateFineForOverdue() {
+        // 设置10天前到期的借阅记录
+        Reader reader = new Reader();
+        reader.setRdID(6L); reader.setRdStatus("0");
+        reader.setRdBorrowQty(1L); reader.setRdType(1L);
+        logic.addReader(reader);
+        Readertype type = new Readertype();
+        type.setRdType(1L); type.setCanLendQty(5L);
+        type.setCanLendDay(30L); type.setPunishRate(new BigDecimal("0.50"));
+        logic.addReaderType(type);
+        Book book = new Book();
+        book.setBkID(600L); book.setBkStatus("1");
+        logic.addBook(book);
+        Borrow borrow = new Borrow();
+        borrow.setBorrowID(2L); borrow.setRdID(6L); borrow.setBkID(600L);
+        borrow.setLsHasReturn("0");
+        borrow.setLdDateRetPlan(new Date(System.currentTimeMillis() - 10L*24*60*60*1000));
+        borrow.setLdDateOut(new Date());
+        logic.addBorrow(borrow);
+
+        logic.returnBook(2L, false);
+        Borrow returned = logic.getBorrow(2L);
+        assertEquals("1", returned.getLsHasReturn());
+        assertTrue(returned.getLdOverDay() > 0);
+        assertTrue(returned.getLdOverMoney().compareTo(BigDecimal.ZERO) > 0);
+    }
+
+    @Test
+    public void returnBook_shouldHandleLostBook() {
+        Reader reader = new Reader();
+        reader.setRdID(7L); reader.setRdStatus("0");
+        reader.setRdBorrowQty(1L); reader.setRdType(1L);
+        logic.addReader(reader);
+        Readertype type = new Readertype();
+        type.setRdType(1L); type.setCanLendQty(5L); type.setCanLendDay(30L);
+        logic.addReaderType(type);
+        Book book = new Book();
+        book.setBkID(700L); book.setBkStatus("1");
+        book.setBkPrice(new BigDecimal("50.00"));
+        logic.addBook(book);
+        Borrow borrow = new Borrow();
+        borrow.setBorrowID(3L); borrow.setRdID(7L); borrow.setBkID(700L);
+        borrow.setLsHasReturn("0");
+        borrow.setLdDateRetPlan(new Date(System.currentTimeMillis() + 10L*24*60*60*1000));
+        borrow.setLdDateOut(new Date());
+        logic.addBorrow(borrow);
+
+        logic.returnBook(3L, true);
+        assertEquals(new BigDecimal("150.00"), logic.getBorrow(3L).getLdOverMoney());
+        assertEquals("2", logic.getBook(700L).getBkStatus());
+    }
 }
 ```
 
