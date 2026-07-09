@@ -1,66 +1,46 @@
 #!/bin/bash
-# Test: Verify workflow.txt contains required project overview sections
 
-WORKFLOW_FILE="E:/Code/code.java/RuoYi-Vue-master/workflow.txt"
-ERRORS=0
+# TDD Test: Verify workflow.txt Environment Preparation Section
+# Acceptance Criteria:
+# - Contains '## 1. 环境准备'
+# - Contains JDK/Node/MySQL/Maven version requirements
+# - Contains database initialization SQL commands
+# - Contains mvn/npm startup commands
 
-echo "Testing workflow.txt content..."
+set -e
 
-# Test 1: File exists
-if [ ! -f "$WORKFLOW_FILE" ]; then
-    echo "FAIL: workflow.txt does not exist"
-    ERRORS=$((ERRORS + 1))
-else
-    echo "PASS: workflow.txt exists"
-fi
+WORKFLOW_FILE="workflow.txt"
+PASS_COUNT=0
+FAIL_COUNT=0
 
-# Test 2: Contains project title
-if grep -q "# RuoYi-Vue 图书管理系统 开发工作流" "$WORKFLOW_FILE"; then
-    echo "PASS: Contains project title"
-else
-    echo "FAIL: Missing project title '# RuoYi-Vue 图书管理系统 开发工作流'"
-    ERRORS=$((ERRORS + 1))
-fi
+pass() { echo "  PASS: $1"; PASS_COUNT=$((PASS_COUNT + 1)); }
+fail() { echo "  FAIL: $1"; FAIL_COUNT=$((FAIL_COUNT + 1)); }
 
-# Test 3: Contains project overview section
-if grep -q "## 项目概述" "$WORKFLOW_FILE"; then
-    echo "PASS: Contains '## 项目概述' section"
-else
-    echo "FAIL: Missing '## 项目概述' section"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# Test 4: Overview has content (not empty)
-OVERVIEW_CONTENT=$(sed -n '/## 项目概述/,/^##/p' "$WORKFLOW_FILE" | head -n 10)
-if echo "$OVERVIEW_CONTENT" | grep -q "图书管理"; then
-    echo "PASS: Overview section has content about 图书管理"
-else
-    echo "FAIL: Overview section appears empty or missing content"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# Test 5: Overview mentions RuoYi-Vue framework
-if echo "$OVERVIEW_CONTENT" | grep -q "RuoYi-Vue"; then
-    echo "PASS: Overview mentions RuoYi-Vue framework"
-else
-    echo "FAIL: Overview does not mention RuoYi-Vue framework"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# Test 6: Overview mentions key technologies
-if echo "$OVERVIEW_CONTENT" | grep -qE "(Spring Boot|Vue|MySQL|MyBatis)"; then
-    echo "PASS: Overview mentions key technologies"
-else
-    echo "FAIL: Overview does not mention key technologies"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# Summary
+echo "=== TDD Test: workflow.txt 环境准备章节 ==="
 echo ""
-if [ $ERRORS -eq 0 ]; then
-    echo "All tests PASSED!"
-    exit 0
-else
-    echo "$ERRORS test(s) FAILED"
-    exit 1
-fi
+
+# --- Section existence ---
+echo "[Section]"
+grep -q "## 1. 环境准备" "$WORKFLOW_FILE" && pass "包含 '## 1. 环境准备' 章节标题" || fail "缺少 '## 1. 环境准备' 章节标题"
+
+# --- Version requirements ---
+echo "[Version Requirements]"
+grep -qi "jdk.*1.8\|java.*1.8" "$WORKFLOW_FILE" && pass "JDK 1.8+ 版本要求" || fail "缺少 JDK 版本要求"
+grep -qi "node.*14\|node.js.*14" "$WORKFLOW_FILE" && pass "Node.js 14+ 版本要求" || fail "缺少 Node.js 版本要求"
+grep -qi "mysql.*5.7\|mysql.*5.7+" "$WORKFLOW_FILE" && pass "MySQL 5.7+ 版本要求" || fail "缺少 MySQL 版本要求"
+grep -qi "maven.*3.6\|maven.*3.6+" "$WORKFLOW_FILE" && pass "Maven 3.6+ 版本要求" || fail "缺少 Maven 版本要求"
+
+# --- Database initialization ---
+echo "[Database Initialization]"
+grep -qi "create.*database.*library\|mysql.*-e.*create" "$WORKFLOW_FILE" && pass "数据库创建命令" || fail "缺少数据库创建命令"
+grep -qi "mysql.*<.*\.sql\|import.*sql" "$WORKFLOW_FILE" && pass "SQL 导入命令" || fail "缺少 SQL 导入命令"
+
+# --- Startup commands ---
+echo "[Startup Commands]"
+grep -qi "mvn.*spring-boot:run" "$WORKFLOW_FILE" && pass "后端启动命令 (mvn)" || fail "缺少后端启动命令"
+grep -qi "npm.*run.*dev\|npm.*install" "$WORKFLOW_FILE" && pass "前端启动命令 (npm)" || fail "缺少前端启动命令"
+
+# --- Summary ---
+echo ""
+echo "=== Results: $PASS_COUNT passed, $FAIL_COUNT failed ==="
+[ $FAIL_COUNT -eq 0 ] && echo "All tests PASSED!" || exit 1
